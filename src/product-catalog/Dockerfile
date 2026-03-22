@@ -1,31 +1,32 @@
-FROM golang:1.22-alpine AS builder
+# set up a base image
+FROM golang:1.22-alpine AS build
 
-WORKDIR /usr/src/app/
+# set up workdir
+WORKDIR /usr/src/app
 
-# Use Go build cache for dependencies
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    mkdir -p /root/.cache/go-build
-
-# Copy
-COPY go.mod go.sum ./
-
-# Download
+COPY . .
+# run the commands that you would run locally on machine
 RUN go mod download
 
-# Copy the rest of the source code
-COPY . .
-
+# compile the application
 RUN go build -o product-catalog .
 
-####################################
 
+# ====================================
+# set up minimal base image like alpine with no shared libraries minimizing the security threats
 FROM alpine AS release
 
-WORKDIR /usr/src/app/
+# copy the resources needed
+WORKDIR /usr/src/app
 
-COPY ./products/ ./products/
-COPY --from=builder /usr/src/app/product-catalog/ ./
+COPY ./products ./products
 
+# copy the binary from build
+COPY --from=build /usr/src/app/product-catalog .
+
+# expose ports 
+# set environmental variables
 ENV PRODUCT_CATALOG_PORT=8088
-ENTRYPOINT [ "./product-catalog" ]
+
+# set cmd or entry point to run the final command
+ENTRYPOINT ["./product-catalog"]
